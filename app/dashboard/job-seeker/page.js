@@ -73,7 +73,13 @@ export default function JobSeekerDashboard() {
            MY Wishlist 
           </button>
           <button className="w-full text-left px-4 py-2 bg-gray-700 rounded">Notifications</button>
-          <button className="w-full text-left px-4 py-2 bg-gray-700 rounded">Change Password</button>
+          <button
+          className="w-full text-left px-4 py-2 bg-gray-700 rounded"
+          onClick={() => router.push("/change-password")}
+>
+  Change Password
+</button>
+
           <button className="w-full text-left px-4 py-2 bg-gray-700 rounded">Chat</button>
         </nav>
       </aside>

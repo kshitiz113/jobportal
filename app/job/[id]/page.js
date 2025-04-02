@@ -17,13 +17,13 @@ export default function JobDetails() {
     }
   }, [id]);
 
-  async function fetchJobDetails() {
+  async function fetchJobDetails(id) {
     try {
-      const res = await fetch(`/api/job/${id}`);
+      const res = await fetch(`/api/job/${id}`, { credentials: "include" });
       if (!res.ok) throw new Error("Job not found");
 
       const data = await res.json();
-      setJob(data.job[0]); 
+      setJob(data.job); // Use `data.job` directly instead of `[0]`
     } catch (error) {
       console.error("Error fetching job details:", error);
     } finally {
@@ -41,6 +41,7 @@ export default function JobDetails() {
     setMessage("");
 
     const formData = new FormData();
+    formData.append("jobId", id);
     formData.append("jobTitle", job.title);
     formData.append("companyName", job.company);
     formData.append("resume", resume);
@@ -49,18 +50,18 @@ export default function JobDetails() {
       const res = await fetch("/api/apply", {
         method: "POST",
         body: formData,
-        credentials: "include",
+        credentials: "include", // Ensure cookies are sent
       });
 
       const result = await res.json();
 
       if (res.ok) {
-        setMessage("Application submitted successfully!");
+        setMessage("✅ Application submitted successfully!");
       } else {
-        setMessage(result.error || "Failed to apply.");
+        setMessage(result.error || "❌ Failed to apply.");
       }
     } catch (error) {
-      setMessage("Error submitting application.");
+      setMessage("❌ Error submitting application.");
     } finally {
       setApplying(false);
     }
@@ -69,26 +70,27 @@ export default function JobDetails() {
   return (
     <div className="flex h-screen bg-gray-900 text-white p-6">
       {loading ? (
-        <p>Loading job details...</p>
+        <p className="text-blue-400 text-lg">Loading job details...</p>
       ) : job ? (
-        <div className="w-full max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg shadow">
+        <div className="w-full max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg shadow-lg">
           <h1 className="text-2xl font-bold text-blue-400">{job.title}</h1>
           <p className="text-gray-400">{job.company} - {job.location}</p>
           <p className="mt-2">{job.description}</p>
-          <p className="mt-2 font-semibold text-green-400">Salary: {job.salary}</p>
+          <p className="mt-2 font-semibold text-green-400">💰 Salary: {job.salary}</p>
+          <p className="mt-2 text-yellow-400">📧 Posted by: {job.email}</p>
 
           {/* Upload Resume & Apply Button */}
           <div className="mt-4">
             <input
               type="file"
               accept=".pdf,.doc,.docx"
-              className="block w-full p-2 border border-gray-600 bg-gray-700 text-white rounded"
+              className="block w-full p-2 border border-gray-600 bg-gray-700 text-white rounded cursor-pointer"
               onChange={(e) => setResume(e.target.files[0])}
             />
             <button
               onClick={handleApply}
               disabled={applying}
-              className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
+              className={`mt-3 px-4 py-2 rounded text-white ${applying ? "bg-gray-500" : "bg-blue-600 hover:bg-blue-700"}`}
             >
               {applying ? "Applying..." : "Apply"}
             </button>
@@ -96,7 +98,7 @@ export default function JobDetails() {
           </div>
         </div>
       ) : (
-        <p className="text-red-500">Job not found</p>
+        <p className="text-red-500">⚠️ Job not found</p>
       )}
     </div>
   );
