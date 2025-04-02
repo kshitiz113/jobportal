@@ -29,3 +29,14 @@ export async function GET(req) {
     return NextResponse.json({ error: "Failed to fetch jobs" }, { status: 500 });
   }
 }
+export async function POST(req) {
+  try {
+    const { title, company, location, salary, description } = await req.json();
+    const query = "INSERT INTO jobs (title, company, location, salary, description) VALUES (?, ?, ?, ?, ?)";
+    await db.execute(query, [title, company, location, salary, description]);
+
+    return NextResponse.json({ message: "Job posted successfully" });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to post job" }, { status: 500 });
+  }
+}

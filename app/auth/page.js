@@ -14,15 +14,20 @@ export default function AuthPage() {
     role: "job_seeker", // Default role
   });
 
+  // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
+    // Validate password match during signup
     if (!isLogin && formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -47,7 +52,9 @@ export default function AuthPage() {
       alert(isLogin ? "Login Successful!" : "Signup Successful!");
 
       if (isLogin) {
-        switch (data.role) {
+        // Handle role-based redirection after login
+        const role = data.role; // Assuming the role is returned in the response
+        switch (role) {
           case "job_seeker":
             router.push("/dashboard/job-seeker");
             break;
@@ -58,10 +65,10 @@ export default function AuthPage() {
             router.push("/dashboard/admin");
             break;
           default:
-            router.push("/");
+            router.push("/"); // Fallback if no role matches
         }
       } else {
-        setIsLogin(true);
+        setIsLogin(true); // Redirect to login page after successful signup
       }
     } catch (error) {
       console.error("Auth Error:", error);
@@ -149,7 +156,7 @@ export default function AuthPage() {
           </button>
         </form>
         <p className="text-center mt-4">
-          {isLogin ? "Don't have an account?" : "Already have an account?"} {" "}
+          {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
           <button
             onClick={() => setIsLogin(!isLogin)}
             className="text-blue-400 hover:underline"

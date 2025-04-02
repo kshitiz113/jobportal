@@ -6,47 +6,77 @@ export default function EmployerDashboard() {
   const router = useRouter();
   const [profile, setProfile] = useState(null);
   const [jobs, setJobs] = useState([]);
-  const [newJob, setNewJob] = useState({ title: '', company: '', description: '' });
+  const [newJob, setNewJob] = useState({ title: '', company: '', location: '', salary: '', description: '' });
+  const [applications, setApplications] = useState({});
 
   useEffect(() => {
     async function fetchProfile() {
-      const res = await fetch('/api/profile', { headers: { 'user-email': 'test@example.com' } });
-      const data = await res.json();
-
-      if (!data.profile) {
-        router.push('/create-profile');
-      } else {
-        setProfile(data.profile);
-        fetchJobs();
+      try {
+        const res = await fetch('/api/profile', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch profile');
+        
+        const data = await res.json();
+        if (!data.profile) {
+          router.push('/create-profile');
+        } else {
+          setProfile(data.profile);
+          fetchJobs(); // Only fetch jobs after profile is loaded
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
       }
     }
 
     async function fetchJobs() {
-      const res = await fetch('/api/job');
-      const data = await res.json();
-      setJobs(data.jobs);
+      try {
+        const res = await fetch('/api/job');
+        if (!res.ok) throw new Error('Failed to fetch jobs');
+
+        const data = await res.json();
+        setJobs(data.jobs || []);
+
+        // Fetch applications for each job
+        data.jobs.forEach(job => fetchApplications(job.id));
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+      }
+    }
+
+    async function fetchApplications(jobId) {
+      try {
+        const res = await fetch(`/api/job/${jobId}/applications`);
+        if (!res.ok) throw new Error(`Failed to fetch applications for job ${jobId}`);
+
+        const data = await res.json();
+        setApplications(prev => ({ ...prev, [jobId]: data.applications || [] }));
+      } catch (error) {
+        console.error(`Error fetching applications for job ${jobId}:`, error);
+      }
     }
 
     fetchProfile();
   }, []);
 
   const handleChange = (e) => {
-    setNewJob({ ...newJob, [e.target.name]: e.target.value });
+    setNewJob(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleJobPost = async (e) => {
     e.preventDefault();
-    const res = await fetch('/api/job', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newJob),
-    });
+    try {
+      const res = await fetch('/api/job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newJob),
+      });
 
-    if (res.ok) {
+      if (!res.ok) throw new Error('Failed to post job');
+
       alert('Job posted successfully!');
-      setNewJob({ title: '', company: '', description: '' });
+      setNewJob({ title: '', company: '', location: '', salary: '', description: '' });
       fetchJobs();
-    } else {
+    } catch (error) {
+      console.error('Error posting job:', error);
       alert('Failed to post job');
     }
   };
@@ -56,65 +86,38 @@ export default function EmployerDashboard() {
       {/* Sidebar */}
       <aside className="w-1/4 p-6 bg-gray-800">
         <div className="flex flex-col items-center">
-          <img src={profile?.photo || '/default-avatar.png'} alt="Profile" className="w-24 h-24 rounded-full border" />
-          <h2 className="mt-4 text-lg font-semibold">{profile?.name}</h2>
+          <h2 className="mt-4 text-lg font-semibold">{profile?.name || 'Employer'}</h2>
         </div>
         <nav className="mt-6 space-y-4">
           <button className="w-full text-left">📌 Wishlist</button>
           <button className="w-full text-left">🔔 Notifications</button>
           <button className="w-full text-left">🔑 Change Password</button>
-          <button className="w-full text-left">📝 Post Job</button>
         </nav>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 p-6">
+        {/* Create Profile Button */}
+        <div className="flex justify-end mb-6">
+          <button
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded text-white"
+            onClick={() => router.push("/create-profile")}
+          >
+            Create Profile
+          </button>
+        </div>
+
         {/* Job Posting Form */}
         <div className="mb-6 bg-gray-800 p-6 rounded-lg shadow-lg">
           <h3 className="text-lg font-semibold mb-4">Post a Job</h3>
           <form onSubmit={handleJobPost} className="space-y-4">
-            <input
-              type="text"
-              name="title"
-              placeholder="Job Title"
-              value={newJob.title}
-              onChange={handleChange}
-              className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600"
-              required
-            />
-            <input
-              type="text"
-              name="company"
-              placeholder="Company Name"
-              value={newJob.company}
-              onChange={handleChange}
-              className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600"
-              required
-            />
-            <textarea
-              name="description"
-              placeholder="Job Description"
-              value={newJob.description}
-              onChange={handleChange}
-              className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600"
-              required
-            />
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white">
-              Post Job
-            </button>
+            <input type="text" name="title" placeholder="Job Title" value={newJob.title} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
+            <input type="text" name="company" placeholder="Company Name" value={newJob.company} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
+            <input type="text" name="location" placeholder="Location" value={newJob.location} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
+            <input type="text" name="salary" placeholder="Salary" value={newJob.salary} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
+            <textarea name="description" placeholder="Job Description" value={newJob.description} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white">Post Job</button>
           </form>
-        </div>
-
-        {/* Posted Jobs */}
-        <h3 className="text-lg font-semibold mb-4">Your Posted Jobs</h3>
-        <div className="space-y-4">
-          {jobs.map((job) => (
-            <div key={jobs.id} className="p-4 bg-gray-800 rounded-lg shadow">
-              <h3 className="text-lg font-semibold">{jobs.title}</h3>
-              <p className="text-gray-400">{jobs.company}</p>
-              <p className="text-gray-500">{jobs.description}</p>
-            </div>
-          ))}
         </div>
       </main>
     </div>

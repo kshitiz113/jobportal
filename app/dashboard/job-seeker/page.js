@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 
 export default function JobSeekerDashboard() {
   const router = useRouter();
-  const [profile, setProfile] = useState(null);
+  const [profileExists, setProfileExists] = useState(null); // Track profile existence
   const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState("");
 
@@ -24,29 +24,33 @@ export default function JobSeekerDashboard() {
     async function fetchProfile() {
       try {
         const res = await fetch("/api/profile");
+        if (!res.ok) {
+          throw new Error("Failed to fetch profile");
+        }
         const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || "Error fetching profile");
-
+        setProfileExists(data.profileExists);
         if (!data.profileExists) {
           toast.error("Profile not found. Please create one.");
-          router.push("/api/create-profile");
-        } else {
-          setProfile(data);
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
         toast.error("Failed to verify profile.");
+        setProfileExists(false);
       }
     }
 
     fetchProfile();
     fetchJobs();
-  }, [router]);
+  }, []);
 
   function handleSearch(e) {
     setSearch(e.target.value);
     fetchJobs(e.target.value);
+  }
+
+  // 🚀 **Navigate to Wishlist Page**
+  function goToWishlist() {
+    router.push("/wishlist");
   }
 
   return (
@@ -54,16 +58,20 @@ export default function JobSeekerDashboard() {
       {/* Sidebar */}
       <aside className="w-1/4 bg-gray-800 p-6">
         <div className="text-center">
-          <img
-            src={profile?.photo || "/default-avatar.png"}
-            alt="Profile"
-            className="w-24 h-24 mx-auto rounded-full border-2 border-white"
-          />
-          <h2 className="mt-2 text-lg font-semibold">{profile?.full_name || "Loading..."}</h2>
+          <h2 className="mt-2 text-lg font-semibold">
+            {profileExists === null ? "Loading..." : profileExists ? "Welcome" : "No Profile"}
+          </h2>
         </div>
-
+        
+        {/* Navigation */}
         <nav className="mt-6 space-y-4">
-          <button className="w-full text-left px-4 py-2 bg-gray-700 rounded">Wishlist</button>
+          {/* 🚀 Wishlist Button (Applied Jobs) */}
+          <button
+            className="w-full text-left px-4 py-2 bg-gray-700 rounded"
+            onClick={goToWishlist}
+          >
+           MY Wishlist 
+          </button>
           <button className="w-full text-left px-4 py-2 bg-gray-700 rounded">Notifications</button>
           <button className="w-full text-left px-4 py-2 bg-gray-700 rounded">Change Password</button>
           <button className="w-full text-left px-4 py-2 bg-gray-700 rounded">Chat</button>
@@ -72,15 +80,21 @@ export default function JobSeekerDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 p-6">
-        {/* Search Bar */}
-        <div className="mb-6">
+        {/* Navigation Bar with Create Profile Button */}
+        <div className="flex justify-between mb-6">
           <input
             type="text"
             placeholder="Search jobs..."
             value={search}
             onChange={handleSearch}
-            className="w-full px-4 py-2 bg-gray-700 rounded text-white"
+            className="w-3/4 px-4 py-2 bg-gray-700 rounded text-white"
           />
+          <button
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded text-white"
+            onClick={() => router.push("/create-profile")}
+          >
+            Create Profile
+          </button>
         </div>
 
         {/* Job Listings */}
@@ -91,7 +105,7 @@ export default function JobSeekerDashboard() {
                 <h3 className="text-lg font-semibold">{job.title}</h3>
                 <p className="text-gray-400">{job.company}</p>
                 <button 
-                  className="mt-2 px-4 py-2 bg-blue-500 rounded text-white"
+                  className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded text-white"
                   onClick={() => router.push(`/job/${job.id}`)}
                 >
                   Apply Now
