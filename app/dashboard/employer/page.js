@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function EmployerDashboard() {
   const router = useRouter();
@@ -14,52 +15,49 @@ export default function EmployerDashboard() {
     description: "",
   });
   const [applications, setApplications] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchProfile() {
+    async function fetchData() {
+      setIsLoading(true);
       try {
-        const res = await fetch("/api/profile", { credentials: "include" });
-        if (!res.ok) throw new Error("Failed to fetch profile");
-
-        const data = await res.json();
-        if (!data.profile) {
+        // Fetch profile
+        const profileRes = await fetch("/api/profile", { credentials: "include" });
+        if (!profileRes.ok) throw new Error("Failed to fetch profile");
+        
+        const profileData = await profileRes.json();
+        if (!profileData.profile) {
           router.push("/create-profile");
-        } else {
-          setProfile(data.profile);
-          fetchJobs(); // Fetch jobs only after profile is loaded
+          return;
         }
+        
+        setProfile(profileData.profile);
+        
+        // Fetch jobs
+        const jobsRes = await fetch("/api/job");
+        if (!jobsRes.ok) throw new Error("Failed to fetch jobs");
+        
+        const jobsData = await jobsRes.json();
+        setJobs(jobsData.jobs || []);
+        
+        // Fetch applications for each job
+     /*   await Promise.all(
+       //   jobsData.jobs.map(async (job) => {
+        //    const appsRes = await fetch(`/api/applications/${job.id}`);
+            if (appsRes.ok) {
+              const appsData = await appsRes.json();
+              setApplications(prev => ({ ...prev, [job.id]: appsData.applications || [] }));
+            }
+          })
+        );*/
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Dashboard error:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
 
-    async function fetchJobs() {
-      try {
-        const res = await fetch("/api/job");
-        if (!res.ok) throw new Error("Failed to fetch jobs");
-
-        const data = await res.json();
-        setJobs(data.jobs || []);
-
-        data.jobs.forEach((job) => fetchApplications(job.id));
-      } catch (error) {
-        console.error("Error fetching jobs:", error);
-      }
-    }
-
-    async function fetchApplications(jobId) {
-      try {
-        const res = await fetch(`/api/applications/${jobId}`);
-        if (!res.ok) throw new Error(`Failed to fetch applications for job ${jobId}`);
-
-        const data = await res.json();
-        setApplications((prev) => ({ ...prev, [jobId]: data.applications || [] }));
-      } catch (error) {
-        console.error(`Error fetching applications for job ${jobId}:`, error);
-      }
-    }
-
-    fetchProfile();
+    fetchData();
   }, [router]);
 
   const handleChange = (e) => {
@@ -69,6 +67,7 @@ export default function EmployerDashboard() {
   const handleJobPost = async (e) => {
     e.preventDefault();
     try {
+      setIsLoading(true);
       const res = await fetch("/api/job/[id]", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,56 +76,228 @@ export default function EmployerDashboard() {
 
       if (!res.ok) throw new Error("Failed to post job");
 
-      alert("Job posted successfully!");
-      setNewJob({ title: "", company: "", location: "", salary: "", description: "" });
-      fetchJobs();
+      // Refresh jobs after successful post
+      const jobsRes = await fetch("/api/job");
+      if (jobsRes.ok) {
+        const jobsData = await jobsRes.json();
+        setJobs(jobsData.jobs || []);
+      }
+
+      setNewJob({
+        title: "",
+        company: "",
+        location: "",
+        salary: "",
+        description: "",
+      });
     } catch (error) {
       console.error("Error posting job:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-      <aside className="w-1/4 p-6 bg-gray-800">
-        <div className="flex flex-col items-center">
-          <h2 className="mt-4 text-lg font-semibold">{profile?.name || "Employer"}</h2>
-        </div>
-        <nav className="mt-6 space-y-4">
-          <button className="w-full text-left" onClick={() => router.push("/job-employer")}>
-            📌 Wishlist
-          </button>
-          <button className="w-full text-left">
-            🔔 Notifications</button>
-          <button className="w-full text-left px-4 py-2 bg-gray-700 rounded" onClick={() => router.push("/change-password")}>
-            🔑 Change Password
-          </button>
-        </nav>
-      </aside>
-
-      <main className="flex-1 p-6">
-        <div className="mb-6 bg-gray-800 p-6 rounded-lg shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">Post a Job</h3>
-          <form onSubmit={handleJobPost} className="space-y-4">
-            <input type="text" name="title" placeholder="Job Title" value={newJob.title} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
-            <input type="text" name="company" placeholder="Company Name" value={newJob.company} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
-            <input type="text" name="location" placeholder="Location" value={newJob.location} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
-            <input type="text" name="salary" placeholder="Salary" value={newJob.salary} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
-            <textarea name="description" placeholder="Job Description" value={newJob.description} onChange={handleChange} className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600" required />
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white">Post Job</button>
-          </form>
+    <div className="flex min-h-screen bg-gray-900 text-gray-100">
+      {/* Sidebar */}
+      <div className="w-64 bg-gray-800 border-r border-gray-700 p-6 flex flex-col">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center mb-3">
+            {profile?.name ? (
+              <span className="text-xl font-semibold">
+                {profile.name.charAt(0).toUpperCase()}
+              </span>
+            ) : (
+              <span className="text-xl font-semibold">E</span>
+            )}
+          </div>
+          <h2 className="text-lg font-semibold">
+            {profile?.name || "Employer Dashboard"}
+          </h2>
+          <p className="text-sm text-gray-400">{profile?.company || ""}</p>
         </div>
 
-        <div className="mt-6">
-          <h3 className="text-xl font-semibold"></h3>
+        <nav className="space-y-2 flex-1">
           <button
-            onClick={() => router.push("/application")}
-            className="bg-blue-500 text-black font-semibold px-4 py-2 rounded hover:bg-yellow-400 transition"
+            onClick={() => router.push("/job-employer")}
+            className="w-full flex items-center space-x-3 px-4 py-3 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
           >
-            View Applicant Details
+            <span>📌</span>
+            <span>Job Wishlist</span>
+          </button>
+          <button className="w-full flex items-center space-x-3 px-4 py-3 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors">
+            <span>🔔</span>
+            <span>Notifications</span>
+          </button>
+          <button
+            onClick={() => router.push("/change-password")}
+            className="w-full flex items-center space-x-3 px-4 py-3 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <span>🔑</span>
+            <span>Change Password</span>
+          </button>
+          <Link
+            href="/chat"
+            className="w-full flex items-center space-x-3 px-4 py-3 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <span>💬</span>
+            <span>Messaging</span>
+          </Link>
+        </nav>
+
+        <div className="mt-auto pt-4 border-t border-gray-700">
+          <button className="w-full text-left px-4 py-2 text-gray-400 hover:text-white transition-colors">
+            ⚙️ Settings
           </button>
         </div>
+      </div>
 
-       
+      {/* Main Content */}
+      <main className="flex-1 p-8 overflow-auto">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold mb-6">Employer Dashboard</h1>
+          
+          {/* Job Posting Form */}
+          <div className="mb-8 bg-gray-800 p-6 rounded-xl border border-gray-700">
+            <h3 className="text-xl font-semibold mb-4">Post New Job Opportunity</h3>
+            <form onSubmit={handleJobPost} className="space-y-4">
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
+                  Job Title
+                </label>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  placeholder="e.g. Senior Frontend Developer"
+                  value={newJob.title}
+                  onChange={handleChange}
+                  className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="company" className="block text-sm font-medium text-gray-300 mb-1">
+                    Company
+                  </label>
+                  <input
+                    type="text"
+                    id="company"
+                    name="company"
+                    placeholder="Company Name"
+                    value={newJob.company}
+                    onChange={handleChange}
+                    className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-300 mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    placeholder="e.g. Remote, New York, etc."
+                    value={newJob.location}
+                    onChange={handleChange}
+                    className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="salary" className="block text-sm font-medium text-gray-300 mb-1">
+                  Salary Range
+                </label>
+                <input
+                  type="text"
+                  id="salary"
+                  name="salary"
+                  placeholder="e.g. $90,000 - $120,000"
+                  value={newJob.salary}
+                  onChange={handleChange}
+                  className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
+                  Job Description
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  rows={5}
+                  placeholder="Detailed job description, requirements, benefits..."
+                  value={newJob.description}
+                  onChange={handleChange}
+                  className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {isLoading ? "Posting..." : "Post Job"}
+              </button>
+            </form>
+          </div>
+
+          {/* Applications Section */}
+          <div className="mt-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">Job Applications</h3>
+              <button
+                onClick={() => router.push("/application")}
+                className="bg-blue-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                View Applicant Details
+              </button>
+            </div>
+
+            {/* Jobs List */}
+            <div className="space-y-4">
+              {jobs.length > 0 ? (
+                jobs.map((job) => (
+                  <div key={job.id} className="bg-gray-800 p-5 rounded-xl border border-gray-700">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold text-lg">{job.title}</h4>
+                        <p className="text-gray-400">{job.company} • {job.location}</p>
+                        <p className="text-blue-400 mt-1">{job.salary}</p>
+                      </div>
+                      <span className="bg-gray-700 text-xs px-3 py-1 rounded-full">
+                        {applications[job.id]?.length || 0} applicants
+                      </span>
+                    </div>
+                    <p className="mt-3 text-gray-300 line-clamp-2">{job.description}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="bg-gray-800 p-8 rounded-xl border border-gray-700 text-center">
+                  <p className="text-gray-400"></p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
