@@ -15,9 +15,10 @@ export async function POST(req) {
     const formData = await req.formData();
     const jobTitle = formData.get("jobTitle");
     const companyName = formData.get("companyName");
+    const jobId = formData.get("jobId"); // Extract jobId properly
     const resumeFile = formData.get("resume");
 
-    if (!jobTitle || !companyName || !resumeFile) {
+    if (!jobTitle || !companyName || !jobId || !resumeFile) {
       return new Response(JSON.stringify({ error: "All fields are required" }), { status: 400 });
     }
 
@@ -35,9 +36,10 @@ export async function POST(req) {
 
     // Store file path in database
     const resumeUrl = `/uploads/resumes/${fileName}`;
+
     await db.query(
-      "INSERT INTO job_applied (email, job_title, company_name, resume_path) VALUES (?, ?, ?, ?)",
-      [email, jobTitle, companyName, resumeUrl]
+      "INSERT INTO job_applied (email, job_title, company_name, resume_path, job_id) VALUES (?, ?, ?, ?, ?)",
+      [email, jobTitle, companyName, resumeUrl, jobId] // jobId included properly
     );
 
     return new Response(JSON.stringify({ message: "Application submitted successfully", resumeUrl }), { status: 200 });

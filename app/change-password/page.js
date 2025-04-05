@@ -18,6 +18,8 @@ export default function ChangePassword() {
         body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
       });
 
+      console.log(response)
+
       const data = await response.json();
 
       if (response.ok) {

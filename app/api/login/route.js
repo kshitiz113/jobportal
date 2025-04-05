@@ -1,9 +1,10 @@
-import db from "@/lib/db";  // Database connection import
-import bcrypt from "bcryptjs";  // For password hashing comparison
-import jwt from "jsonwebtoken";  // For generating JWT token
-import { cookies } from "next/headers";  // For setting HTTP-only cookies
+import db from "@/lib/db";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
-const SECRET_KEY = "your_secret_key"; // Replace with a secure key in production
+const SECRET_KEY = process.env.SECRET_KEY || "your_secret_key";
 
 export async function POST(req) {
   try {
@@ -11,74 +12,76 @@ export async function POST(req) {
 
     // Check for missing required fields
     if (!email || !password || !role) {
-      return new Response(
-        JSON.stringify({ error: "Missing email, password, or role" }),
+      return NextResponse.json(
+        { error: "Missing email, password, or role" },
         { status: 400 }
       );
     }
 
     // Check for valid role
     if (!["job_seeker", "employer", "admin"].includes(role)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid role. Must be job_seeker, employer, or admin" }),
+      return NextResponse.json(
+        { error: "Invalid role. Must be job_seeker, employer, or admin" },
         { status: 400 }
       );
     }
 
-    // Query to check if the user exists with the provided email and role
-    const [user] = await db.query(
+    // Query to check if the user exists
+    const [users] = await db.query(
       "SELECT * FROM users WHERE email = ? AND role = ?",
       [email, role]
     );
 
-    if (user.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email, password, or role" }),
+    if (users.length === 0) {
+      return NextResponse.json(
+        { error: "Invalid email, password, or role" },
         { status: 400 }
       );
     }
+
+    const user = users[0];
 
     // Compare password hash
-    const validPassword = await bcrypt.compare(password, user[0].password);
+    const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return new Response(
-        JSON.stringify({ error: "Invalid email, password, or role" }),
+      return NextResponse.json(
+        { error: "Invalid email, password, or role" },
         { status: 400 }
       );
     }
 
-    // Generate JWT token with user ID and role
+    // Generate JWT token
     const token = jwt.sign(
-      { id: user[0].id, role: user[0].role },
+      { id: user.id, email: user.email, role: user.role },
       SECRET_KEY,
       { expiresIn: "1h" }
     );
 
-    // Set the JWT token in an HTTP-only cookie
+    // Set cookies
     cookies().set("auth_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",  // Secure cookie in production
-      maxAge: 3600,  // Token expiration (1 hour)
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 3600,
       path: "/",
     });
 
-    // Set email in an HTTP-only cookie
     cookies().set("user_email", email, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",  // Secure cookie in production
-      maxAge: 3600,  // Cookie expiration (1 hour)
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600,
       path: "/",
     });
 
-    return new Response(
-      JSON.stringify({ message: "Login successful", role: user[0].role }),
+    return NextResponse.json(
+      { message: "Login successful", role: user.role },
       { status: 200 }
     );
 
   } catch (error) {
     console.error("Login Error:", error);
-    return new Response(
-      JSON.stringify({ error: "Server error" }),
+    return NextResponse.json(
+      { error: "Server error", details: error.message },
       { status: 500 }
     );
   }

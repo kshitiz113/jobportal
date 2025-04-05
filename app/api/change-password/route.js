@@ -1,15 +1,28 @@
-import db from "@/lib/db"; // MySQL connection
-import bcrypt from "bcryptjs"; // Password hashing
-import jwt from "jsonwebtoken"; // JWT handling
-import { cookies } from "next/headers"; // Access cookies
+import db from "@/lib/db";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
+import dotenv from "dotenv";
+import { Cookie } from "next/font/google";
+dotenv.config();
 
-const SECRET_KEY = process.env.SECRET_KEY; // Secure key
 
 export async function POST(req) {
+  const SECRET_KEY = process.env.SECRET_KEY;
+
+  if (!SECRET_KEY) {
+    console.error("❌ SECRET_KEY is missing!");
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
+      { status: 500 }
+    );
+  }
+
   try {
     const { currentPassword, newPassword, confirmPassword } = await req.json();
+    // console.log(currentPassword, newPassword)
 
-    // ✅ Await cookies before accessing them
+    // ✅ Correctly await `cookies()`
     const cookieStore = await cookies();
     const token = cookieStore.get("auth_token")?.value;
 
@@ -20,27 +33,36 @@ export async function POST(req) {
       );
     }
 
-    // Verify JWT token
+    console.log("🔹 Token received:", token);
+
+    // ✅ Verify JWT token correctly
     let decoded;
     try {
-      decoded = jwt.verify(token, SECRET_KEY);
+      const decoded = jwt.verify(token, SECRET_KEY);
+console.log("🔹 Full Decoded Token:", decoded);
+
+
     } catch (err) {
+      console.error("❌ JWT Verification Failed:", err.message);
       return new Response(
-        JSON.stringify({ error: "Invalid token. Please log in again." }),
+        JSON.stringify({ error: "Invalid or expired token. Please log in again." }),
         { status: 403 }
       );
-    }
+    } 
 
-    const userEmail = decoded.email; // Extract email from token
+    const userEmail = await cookies().get("user_email")?.value;
+    console.log(userEmail);
 
-    // Validate input fields
+    // const userEmail = decoded.email;
+    // console.log("🔹 User email from token:", userEmail);
+
+    // ✅ Validate inputs
     if (!currentPassword || !newPassword || !confirmPassword) {
       return new Response(
         JSON.stringify({ error: "All fields are required" }),
         { status: 400 }
       );
     }
-
     if (newPassword !== confirmPassword) {
       return new Response(
         JSON.stringify({ error: "New passwords do not match" }),
@@ -48,7 +70,7 @@ export async function POST(req) {
       );
     }
 
-    // Fetch user from database using email
+    // ✅ Fetch user
     const [users] = await db.query("SELECT * FROM users WHERE email = ?", [userEmail]);
     if (users.length === 0) {
       return new Response(
@@ -59,7 +81,7 @@ export async function POST(req) {
 
     const user = users[0];
 
-    // Compare current password
+    // ✅ Check current password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return new Response(
@@ -68,10 +90,8 @@ export async function POST(req) {
       );
     }
 
-    // Hash new password
+    // ✅ Hash new password & update database
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password in database
     await db.query("UPDATE users SET password = ? WHERE email = ?", [hashedPassword, userEmail]);
 
     return new Response(
@@ -80,7 +100,7 @@ export async function POST(req) {
     );
 
   } catch (error) {
-    console.error("Error updating password:", error);
+    console.error("❌ Error updating password:", error);
     return new Response(
       JSON.stringify({ error: "Internal Server Error" }),
       { status: 500 }

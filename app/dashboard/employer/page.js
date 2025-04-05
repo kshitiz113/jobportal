@@ -41,7 +41,6 @@ export default function EmployerDashboard() {
         const data = await res.json();
         setJobs(data.jobs || []);
 
-        // Fetch applications for each job
         data.jobs.forEach((job) => fetchApplications(job.id));
       } catch (error) {
         console.error("Error fetching jobs:", error);
@@ -50,7 +49,7 @@ export default function EmployerDashboard() {
 
     async function fetchApplications(jobId) {
       try {
-        const res = await fetch(`/api/job/${jobId}/applications`);
+        const res = await fetch(`/api/applications/${jobId}`);
         if (!res.ok) throw new Error(`Failed to fetch applications for job ${jobId}`);
 
         const data = await res.json();
@@ -61,7 +60,7 @@ export default function EmployerDashboard() {
     }
 
     fetchProfile();
-  }, []);
+  }, [router]);
 
   const handleChange = (e) => {
     setNewJob((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -83,27 +82,28 @@ export default function EmployerDashboard() {
       fetchJobs();
     } catch (error) {
       console.error("Error posting job:", error);
-      alert("Failed to post job");
     }
   };
 
   return (
     <div className="flex h-screen bg-gray-900 text-white">
-      {/* Sidebar */}
       <aside className="w-1/4 p-6 bg-gray-800">
         <div className="flex flex-col items-center">
           <h2 className="mt-4 text-lg font-semibold">{profile?.name || "Employer"}</h2>
         </div>
         <nav className="mt-6 space-y-4">
-          <button className="w-full text-left">📌 Wishlist</button>
-          <button className="w-full text-left">🔔 Notifications</button>
-          <button className="w-full text-left">🔑 Change Password</button>
+          <button className="w-full text-left" onClick={() => router.push("/job-employer")}>
+            📌 Wishlist
+          </button>
+          <button className="w-full text-left">
+            🔔 Notifications</button>
+          <button className="w-full text-left px-4 py-2 bg-gray-700 rounded" onClick={() => router.push("/change-password")}>
+            🔑 Change Password
+          </button>
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-6">
-        {/* Job Posting Form */}
         <div className="mb-6 bg-gray-800 p-6 rounded-lg shadow-lg">
           <h3 className="text-lg font-semibold mb-4">Post a Job</h3>
           <form onSubmit={handleJobPost} className="space-y-4">
@@ -116,28 +116,17 @@ export default function EmployerDashboard() {
           </form>
         </div>
 
-        {/* Job Applications Section */}
         <div className="mt-6">
-          <h3 className="text-xl font-semibold">Applications</h3>
-          {jobs.map((job) => (
-            <div key={job.id} className="bg-gray-800 p-4 rounded-lg mt-4">
-              <h4 className="text-lg font-semibold">{job.title}</h4>
-              <p className="text-gray-400">{job.company} - {job.location}</p>
-              <h5 className="mt-2 text-yellow-400">Applicants:</h5>
-              {applications[job.id]?.length > 0 ? (
-                <ul className="mt-2">
-                  {applications[job.id].map((applicant, index) => (
-                    <li key={index} className="text-gray-300">
-                      📄 {applicant.name} - {applicant.email} 
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-gray-500">No applications yet.</p>
-              )}
-            </div>
-          ))}
+          <h3 className="text-xl font-semibold"></h3>
+          <button
+            onClick={() => router.push("/application")}
+            className="bg-blue-500 text-black font-semibold px-4 py-2 rounded hover:bg-yellow-400 transition"
+          >
+            View Applicant Details
+          </button>
         </div>
+
+       
       </main>
     </div>
   );
