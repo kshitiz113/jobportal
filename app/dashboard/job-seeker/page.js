@@ -47,6 +47,23 @@ export default function JobSeekerDashboard() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/logout', {
+        method: 'POST',
+      });
+      
+      if (res.ok) {
+        toast.success('Logged out successfully');
+        router.push('/auth');
+      } else {
+        throw new Error('Logout failed');
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   useEffect(() => {
     async function fetchProfile() {
       try {
@@ -150,13 +167,27 @@ export default function JobSeekerDashboard() {
             </svg>
             Change Password
           </button>
-          <Link href="/chat" className="w-full text-left px-4 py-2 bg-gray-700 rounded block text-gray-100 hover:bg-gray-600">
-            💬 Chat
+          <Link href="/chat" className="w-full text-left px-4 py-3 rounded-lg transition-all flex items-center text-gray-300 hover:bg-gray-700">
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Chat
           </Link>
+          
+          {/* Logout Button */}
+          <button 
+            onClick={handleLogout}
+            className="w-full text-left px-4 py-3 rounded-lg transition-all flex items-center text-gray-300 hover:bg-red-900/50 hover:text-red-300 mt-4"
+          >
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Log Out
+          </button>
         </nav>
       </aside>
 
-      {/* Main Content */}
+      {/* Rest of the component remains the same */}
       <main className="flex-1 p-6 max-w-6xl mx-auto">
         {/* Header with Notifications */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">

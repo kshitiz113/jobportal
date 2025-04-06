@@ -16,6 +16,8 @@ export default function EmployerDashboard() {
   });
   const [applications, setApplications] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [salaryError, setSalaryError] = useState("");
+  const [descriptionError, setDescriptionError] = useState("");
 
   useEffect(() => {
     async function fetchData() {
@@ -40,16 +42,6 @@ export default function EmployerDashboard() {
         const jobsData = await jobsRes.json();
         setJobs(jobsData.jobs || []);
         
-        // Fetch applications for each job
-     /*   await Promise.all(
-       //   jobsData.jobs.map(async (job) => {
-        //    const appsRes = await fetch(`/api/applications/${job.id}`);
-            if (appsRes.ok) {
-              const appsData = await appsRes.json();
-              setApplications(prev => ({ ...prev, [job.id]: appsData.applications || [] }));
-            }
-          })
-        );*/
       } catch (error) {
         console.error("Dashboard error:", error);
       } finally {
@@ -61,17 +53,88 @@ export default function EmployerDashboard() {
   }, [router]);
 
   const handleChange = (e) => {
-    setNewJob((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    
+    // Special handling for salary field
+    if (name === "salary") {
+      // Only allow numbers and commas/periods for formatting
+      const numericValue = value.replace(/[^0-9]/g, '');
+      
+      // Validate if it's a valid number
+      if (numericValue && !/^\d+$/.test(numericValue)) {
+        setSalaryError("Please enter a valid number");
+        return;
+      } else {
+        setSalaryError("");
+      }
+      
+      // Format with commas for display
+      const formattedValue = numericValue 
+        ? parseInt(numericValue, 10).toLocaleString()
+        : "";
+      
+      setNewJob(prev => ({ ...prev, [name]: formattedValue }));
+    } 
+    // Handling for description field
+    else if (name === "description") {
+      setNewJob(prev => ({ ...prev, [name]: value }));
+      
+      // Validate minimum length
+      if (value.length > 0 && value.length < 50) {
+        setDescriptionError("Description must be at least 50 characters");
+      } else {
+        setDescriptionError("");
+      }
+    } else {
+      setNewJob(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleLogout = async () => {
+    const router = useRouter();
+  
+    try {
+      const res = await fetch('/api/logout', {
+        method: 'POST',
+      });
+  
+      if (res.ok) {
+        toast.success('Logged out successfully ✨', { autoClose: 2000 });
+        router.push('/auth');  // Redirect to login/auth page
+      } else {
+        const data = await res.json();
+        throw new Error(data.message || 'Logout failed');
+      }
+    } catch (error) {
+      toast.error(`Error: ${error.message}`);
+    }
   };
 
   const handleJobPost = async (e) => {
     e.preventDefault();
+    
+    // Validate salary before submission
+    const numericSalary = newJob.salary.replace(/[^0-9]/g, '');
+    if (!numericSalary || !/^\d+$/.test(numericSalary)) {
+      setSalaryError("Please enter a valid salary amount");
+      return;
+    }
+    
+    // Validate description length
+    if (newJob.description.length < 50) {
+      setDescriptionError("Description must be at least 50 characters");
+      return;
+    }
+    
     try {
       setIsLoading(true);
       const res = await fetch("/api/job/[id]", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newJob),
+        body: JSON.stringify({
+          ...newJob,
+          salary: `$${parseInt(numericSalary, 10).toLocaleString()}`,
+        }),
       });
 
       if (!res.ok) throw new Error("Failed to post job");
@@ -90,6 +153,8 @@ export default function EmployerDashboard() {
         salary: "",
         description: "",
       });
+      setSalaryError("");
+      setDescriptionError("");
     } catch (error) {
       console.error("Error posting job:", error);
     } finally {
@@ -151,6 +216,17 @@ export default function EmployerDashboard() {
             <span>💬</span>
             <span>Messaging</span>
           </Link>
+          <button 
+            onClick={handleLogout}
+            className="w-full text-left px-4 py-3 rounded-lg transition-all flex items-center text-gray-300 hover:bg-red-900/50 hover:text-red-300 mt-4"
+          >
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Log Out
+          </button>
+
+
         </nav>
 
         <div className="mt-auto pt-4 border-t border-gray-700">
@@ -220,23 +296,26 @@ export default function EmployerDashboard() {
 
               <div>
                 <label htmlFor="salary" className="block text-sm font-medium text-gray-300 mb-1">
-                  Salary Range
+                  Salary (USD)
                 </label>
                 <input
                   type="text"
                   id="salary"
                   name="salary"
-                  placeholder="e.g. $90,000 - $120,000"
+                  placeholder="e.g. 90000 (numbers only)"
                   value={newJob.salary}
                   onChange={handleChange}
                   className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
                   required
                 />
+                {salaryError && (
+                  <p className="mt-1 text-sm text-red-500">{salaryError}</p>
+                )}
               </div>
 
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-                  Job Description
+                  Job Description (Minimum 50 characters)
                 </label>
                 <textarea
                   id="description"
@@ -248,11 +327,17 @@ export default function EmployerDashboard() {
                   className="w-full p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"
                   required
                 />
+                {descriptionError && (
+                  <p className="mt-1 text-sm text-red-500">{descriptionError}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-400">
+                  {newJob.description.length}/50 characters (minimum)
+                </p>
               </div>
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || descriptionError || salaryError}
                 className="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 {isLoading ? "Posting..." : "Post Job"}
@@ -281,7 +366,7 @@ export default function EmployerDashboard() {
                       <div>
                         <h4 className="font-semibold text-lg">{job.title}</h4>
                         <p className="text-gray-400">{job.company} • {job.location}</p>
-                        <p className="text-blue-400 mt-1">{job.salary}</p>
+                        <p className="text-blue-400 mt-1">${job.salary}</p>
                       </div>
                       <span className="bg-gray-700 text-xs px-3 py-1 rounded-full">
                         {applications[job.id]?.length || 0} applicants
@@ -292,7 +377,7 @@ export default function EmployerDashboard() {
                 ))
               ) : (
                 <div className="bg-gray-800 p-8 rounded-xl border border-gray-700 text-center">
-                  <p className="text-gray-400"></p>
+                  <p className="text-gray-400">No jobs posted yet</p>
                 </div>
               )}
             </div>

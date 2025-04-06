@@ -6,6 +6,7 @@ import { toast } from "react-hot-toast";
 export default function EmployerApplications() {
   const [applications, setApplications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewedResumes, setViewedResumes] = useState({});
   const router = useRouter();
 
   useEffect(() => {
@@ -17,6 +18,10 @@ export default function EmployerApplications() {
         
         const data = await res.json();
         setApplications(data.applications || []);
+        
+        // Initialize viewed resumes state from local storage
+        const storedViews = JSON.parse(localStorage.getItem('viewedResumes') || '{}');
+        setViewedResumes(storedViews);
       } catch (err) {
         console.error("Failed to fetch applications:", err);
         toast.error("Failed to load applications");
@@ -32,8 +37,23 @@ export default function EmployerApplications() {
     router.push(`/quiz/create?jobId=${jobId}`);
   };
 
+  const handleViewResume = (applicationId) => {
+    // Mark resume as viewed
+    const updatedViews = {
+      ...viewedResumes,
+      [applicationId]: true
+    };
+    setViewedResumes(updatedViews);
+    localStorage.setItem('viewedResumes', JSON.stringify(updatedViews));
+  };
+
   const handleApplicationAction = async (applicationId, action) => {
     try {
+      // Check if resume was viewed
+      if (!viewedResumes[applicationId]) {
+        throw new Error("Please view the applicant's resume before taking action");
+      }
+
       const response = await fetch(`/api/applications/${applicationId}`, {
         method: "POST",
         headers: {
@@ -57,7 +77,7 @@ export default function EmployerApplications() {
 
     } catch (error) {
       console.error("Action failed:", error);
-      toast.error("Failed to update application status");
+      toast.error(error.message);
     }
   };
 
@@ -107,7 +127,7 @@ export default function EmployerApplications() {
         <div className="grid gap-4">
           {applications.map((app) => (
             <div 
-              key={`${app.id}-${app.status}`} // Unique key with status to force re-render on status change
+              key={`${app.id}-${app.status}`}
               className="bg-gray-800/70 hover:bg-gray-800/90 p-5 rounded-xl shadow-lg border border-gray-700 transition-all duration-200"
             >
               <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
@@ -147,12 +167,13 @@ export default function EmployerApplications() {
                       href={app.resume_path}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => handleViewResume(app.id)}
                       className="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      View Resume
+                      {viewedResumes[app.id] ? "View Resume Again" : "View Resume (Required)"}
                     </a>
                   )}
                 </div>
@@ -187,9 +208,12 @@ export default function EmployerApplications() {
                       className={`flex items-center justify-center gap-1 px-4 py-2 rounded-lg transition ${
                         app.status === "accepted" 
                           ? "bg-green-700 cursor-default" 
-                          : "bg-green-600 hover:bg-green-700"
+                          : viewedResumes[app.id] 
+                            ? "bg-green-600 hover:bg-green-700" 
+                            : "bg-gray-600 cursor-not-allowed"
                       }`}
-                      disabled={app.status === "accepted"}
+                      disabled={app.status === "accepted" || !viewedResumes[app.id]}
+                      title={!viewedResumes[app.id] ? "You must view the resume first" : ""}
                     >
                       {app.status === "accepted" ? (
                         <>
@@ -207,9 +231,12 @@ export default function EmployerApplications() {
                       className={`flex items-center justify-center gap-1 px-4 py-2 rounded-lg transition ${
                         app.status === "rejected" 
                           ? "bg-red-700 cursor-default" 
-                          : "bg-red-600 hover:bg-red-700"
+                          : viewedResumes[app.id] 
+                            ? "bg-red-600 hover:bg-red-700" 
+                            : "bg-gray-600 cursor-not-allowed"
                       }`}
-                      disabled={app.status === "rejected"}
+                      disabled={app.status === "rejected" || !viewedResumes[app.id]}
+                      title={!viewedResumes[app.id] ? "You must view the resume first" : ""}
                     >
                       {app.status === "rejected" ? (
                         <>
@@ -236,6 +263,14 @@ export default function EmployerApplications() {
                     {app.status === "accepted" 
                       ? "✓ Shortlisted - Applicant has been notified" 
                       : "✗ Rejected - Applicant has been notified"}
+                  </span>
+                </div>
+              )}
+
+              {!viewedResumes[app.id] && (
+                <div className="mt-3 text-sm px-3 py-2 rounded-md bg-yellow-900/30 text-yellow-400">
+                  <span className="font-medium">
+                    ⚠️ Please view the applicant's resume before taking action
                   </span>
                 </div>
               )}

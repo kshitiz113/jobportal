@@ -13,7 +13,7 @@ export default function AuthPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "job_seeker",
+    role: "job_seeker", // Default role
   });
 
   const handleChange = (e) => {
@@ -21,6 +21,13 @@ export default function AuthPage() {
     setFormData((prevData) => ({
       ...prevData,
       [name]: value,
+    }));
+  };
+
+  const handleRoleChange = (role) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      role: role,
     }));
   };
 
@@ -147,10 +154,73 @@ export default function AuthPage() {
               </motion.div>
             )}
 
+            {/* Role selection - now visible in both login and signup */}
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: isLogin ? 0.1 : 0.15 }}
+            >
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                I am a:
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange("job_seeker")}
+                  className={`flex-1 py-2 px-4 rounded-lg border transition flex items-center justify-center gap-2 ${
+                    formData.role === "job_seeker"
+                      ? "bg-blue-600/30 border-blue-500 text-white"
+                      : "bg-gray-700/50 border-gray-600 text-gray-300"
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                  Job Seeker
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange("employer")}
+                  className={`flex-1 py-2 px-4 rounded-lg border transition flex items-center justify-center gap-2 ${
+                    formData.role === "employer"
+                      ? "bg-blue-600/30 border-blue-500 text-white"
+                      : "bg-gray-700/50 border-gray-600 text-gray-300"
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
+                  Employer
+                </button>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: isLogin ? 0.2 : 0.2 }}
             >
               <label className="block text-sm font-medium text-gray-300 mb-1">
                 Email Address
@@ -169,7 +239,7 @@ export default function AuthPage() {
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: isLogin ? 0.3 : 0.3 }}
             >
               <label className="block text-sm font-medium text-gray-300 mb-1">
                 Password
@@ -186,70 +256,30 @@ export default function AuthPage() {
             </motion.div>
 
             {!isLogin && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 transition"
-                    placeholder="••••••••"
-                    required
-                  />
-                </motion.div>
-
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Account Type
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, role: "job_seeker" })
-                      }
-                      className={`py-2 px-4 rounded-lg border transition ${
-                        formData.role === "job_seeker"
-                          ? "bg-blue-600/30 border-blue-500 text-white"
-                          : "bg-gray-700/50 border-gray-600 text-gray-300"
-                      }`}
-                    >
-                      Job Seeker
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, role: "employer" })
-                      }
-                      className={`py-2 px-4 rounded-lg border transition ${
-                        formData.role === "employer"
-                          ? "bg-blue-600/30 border-blue-500 text-white"
-                          : "bg-gray-700/50 border-gray-600 text-gray-300"
-                      }`}
-                    >
-                      Employer
-                    </button>
-                  </div>
-                </motion.div>
-              </>
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400 transition"
+                  placeholder="••••••••"
+                  required
+                />
+              </motion.div>
             )}
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
+              transition={{ delay: isLogin ? 0.4 : 0.5 }}
             >
               <button
                 type="submit"

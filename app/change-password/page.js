@@ -14,41 +14,73 @@ export default function ChangePassword() {
     confirm: false
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [requirements, setRequirements] = useState({
+    length: false,
+    uppercase: false,
+    number: false,
+    specialChar: false,
+    match: false
+  });
   const router = useRouter();
 
-  // Password strength calculator
+  // Password strength calculator and requirement checker
   useEffect(() => {
     if (!newPassword) {
       setPasswordStrength(0);
+      setRequirements({
+        length: false,
+        uppercase: false,
+        number: false,
+        specialChar: false,
+        match: false
+      });
       return;
     }
 
     let strength = 0;
-    // Length check
-    if (newPassword.length >= 8) strength += 1;
-    if (newPassword.length >= 12) strength += 1;
-    // Complexity checks
-    if (/[A-Z]/.test(newPassword)) strength += 1;
-    if (/[0-9]/.test(newPassword)) strength += 1;
-    if (/[^A-Za-z0-9]/.test(newPassword)) strength += 1;
+    const newRequirements = {
+      length: newPassword.length >= 8,
+      uppercase: /[A-Z]/.test(newPassword),
+      number: /[0-9]/.test(newPassword),
+      specialChar: /[^A-Za-z0-9]/.test(newPassword),
+      match: newPassword === confirmPassword && confirmPassword.length > 0
+    };
 
-    setPasswordStrength(Math.min(strength, 5));
-  }, [newPassword]);
+    // Calculate strength based on requirements
+    if (newRequirements.length) strength += 1;
+    if (newRequirements.uppercase) strength += 1;
+    if (newRequirements.number) strength += 1;
+    if (newRequirements.specialChar) strength += 1;
+    if (newRequirements.match) strength += 1;
+
+    setPasswordStrength(strength);
+    setRequirements(newRequirements);
+  }, [newPassword, confirmPassword]);
+
+  const allRequirementsMet = () => {
+    return (
+      requirements.length &&
+      requirements.uppercase &&
+      requirements.number &&
+      requirements.specialChar &&
+      requirements.match
+    );
+  };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setMessage("");
     setIsLoading(true);
 
-    // Client-side validation
-    if (newPassword !== confirmPassword) {
-      setMessage("❌ New passwords don't match");
+    // Comprehensive client-side validation
+    if (!currentPassword) {
+      setMessage("❌ Please enter your current password");
       setIsLoading(false);
       return;
     }
 
-    if (newPassword.length < 8) {
-      setMessage("❌ Password must be at least 8 characters");
+    if (!allRequirementsMet()) {
+      setMessage("❌ Please meet all password requirements");
       setIsLoading(false);
       return;
     }
@@ -68,8 +100,8 @@ export default function ChangePassword() {
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
-        // Redirect after success (optional)
-        setTimeout(() => router.push("/profile"), 2000);
+        // Redirect after success
+        setTimeout(() => router.push("/auth"), 2000);
       } else {
         setMessage(`❌ ${data.error || "Failed to change password"}`);
       }
@@ -178,17 +210,17 @@ export default function ChangePassword() {
                   </div>
                 </div>
                 <ul className="text-xs text-gray-400 space-y-1">
-                  <li className={`flex items-center ${newPassword.length >= 8 ? 'text-green-400' : ''}`}>
-                    {newPassword.length >= 8 ? '✓' : '•'} At least 8 characters
+                  <li className={`flex items-center ${requirements.length ? 'text-green-400' : 'text-red-400'}`}>
+                    {requirements.length ? '✓' : '✗'} At least 8 characters
                   </li>
-                  <li className={`flex items-center ${/[A-Z]/.test(newPassword) ? 'text-green-400' : ''}`}>
-                    {/[A-Z]/.test(newPassword) ? '✓' : '•'} Uppercase letter
+                  <li className={`flex items-center ${requirements.uppercase ? 'text-green-400' : 'text-red-400'}`}>
+                    {requirements.uppercase ? '✓' : '✗'} At least 1 uppercase letter
                   </li>
-                  <li className={`flex items-center ${/[0-9]/.test(newPassword) ? 'text-green-400' : ''}`}>
-                    {/[0-9]/.test(newPassword) ? '✓' : '•'} Number
+                  <li className={`flex items-center ${requirements.number ? 'text-green-400' : 'text-red-400'}`}>
+                    {requirements.number ? '✓' : '✗'} At least 1 number
                   </li>
-                  <li className={`flex items-center ${/[^A-Za-z0-9]/.test(newPassword) ? 'text-green-400' : ''}`}>
-                    {/[^A-Za-z0-9]/.test(newPassword) ? '✓' : '•'} Special character
+                  <li className={`flex items-center ${requirements.specialChar ? 'text-green-400' : 'text-red-400'}`}>
+                    {requirements.specialChar ? '✓' : '✗'} At least 1 special character
                   </li>
                 </ul>
               </div>
@@ -202,7 +234,9 @@ export default function ChangePassword() {
                 type={showPassword.confirm ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full p-2 pr-10 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full p-2 pr-10 bg-gray-700 border ${
+                  confirmPassword && !requirements.match ? 'border-red-500' : 'border-gray-600'
+                } rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 required
               />
               <button
@@ -224,18 +258,20 @@ export default function ChangePassword() {
               </button>
             </div>
             
-            {confirmPassword && newPassword !== confirmPassword && (
+            {confirmPassword && !requirements.match && (
               <p className="text-red-400 text-xs mt-1">Passwords don't match</p>
             )}
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !allRequirementsMet()}
             className={`w-full p-2 rounded-md transition duration-200 flex items-center justify-center ${
               isLoading 
                 ? "bg-blue-700 cursor-not-allowed" 
-                : "bg-blue-500 hover:bg-blue-600"
+                : allRequirementsMet() 
+                  ? "bg-blue-500 hover:bg-blue-600" 
+                  : "bg-gray-600 cursor-not-allowed"
             }`}
           >
             {isLoading ? (
